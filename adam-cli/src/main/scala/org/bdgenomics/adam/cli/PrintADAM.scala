@@ -114,54 +114,71 @@ class PrintADAM(protected val args: PrintADAMArgs) extends ADAMSparkCommand[Prin
   //    })
   //  }
   //
-  //  def displaySemantic(sc: SparkContext, file: String, output: Option[String]) {
-  //    withPrintWriter(output)(out => {
-  //      // This one works for any Parquet file:
-  //      val rawTraversable = new ParquetFileTraversable[IndexedRecord](sc, file)
-  //      rawTraversable.headOption match {
-  //        case None =>
-  //          out.println("This File is empty")
-  //        case Some(witness) => {
-  //          val schema = witness.getSchema
-  //          out.println("Schema: " + schema.getName() + " (" + schema.getType() + ")")
-  //          schema.getName() match {
-  //            // Avro does not generate a parent “case class” so we have to this ugly string matching:
-  //            case "ADAMRecord" =>
-  //              println("NOT IMPLEMENTED: ADAMRecord")
-  //            case "ADAMNucleotideContigFragment" =>
-  //              println("NOT IMPLEMENTED: ADAMNucleotideContigFragment")
-  //            case "ADAMPileup" =>
-  //              println("NOT IMPLEMENTED: ADAMPileup")
-  //            case "ADAMNestedPileup" =>
-  //              println("NOT IMPLEMENTED: ADAMNestedPileup")
-  //            case "ADAMContig" =>
-  //              println("NOT IMPLEMENTED: ADAMContig")
-  //            case "ADAMVariant" => {
-  //              val traversable = new ParquetFileTraversable[ADAMVariant](sc, file)
-  //              traversable.foreach(row => {
-  //              })
-  //            }
-  //            case "VariantCallingAnnotations" =>
-  //              println("NOT IMPLEMENTED: VariantCallingAnnotations")
-  //            case "ADAMGenotype" => displayADAMGenotype(sc, file, out)
-  //            case "VariantEffect" =>
-  //              println("NOT IMPLEMENTED: VariantEffect")
-  //            case "ADAMDatabaseVariantAnnotation" =>
-  //              println("NOT IMPLEMENTED: ADAMDatabaseVariantAnnotation")
-  //            case other =>
-  //              println("Unknown Schema !")
-  //          }
-  //        }
-  //      }
-  //    })
-  //  }
+  def displaySomeInformation(sc: SparkContext, file: String, output: Option[String]) {
+    withPrintStream(output)(out => {
+      // This one works for any Parquet file:
+      val say = (s: String) => out.println("Info => " + s)
+      val rawTraversable = new ParquetFileTraversable[IndexedRecord](sc, file)
+      rawTraversable.headOption match {
+        case None =>
+          say("This File is empty")
+        case Some(witness) => {
+          val schema = witness.getSchema
+          say("Schema: " + schema.getName() + " (" + schema.getType() + ").")
+          say("Has " + rawTraversable.size + " items.")
+          schema.getName() match {
+            // Avro does not generate a parent“ case class” so we have to this ugly string matching:
+            case "ADAMRecord" =>
+              println("NOT IMPLEMENTED: ADAMRecord")
+            case "ADAMNucleotideContigFragment" =>
+              println("NOT IMPLEMENTED: ADAMNucleotideContigFragment")
+            case "ADAMPileup" =>
+              println("NOT IMPLEMENTED: ADAMPileup")
+            case "ADAMNestedPileup" =>
+              println("NOT IMPLEMENTED: ADAMNestedPileup")
+            case "ADAMContig" =>
+              println("NOT IMPLEMENTED: ADAMContig")
+            case "ADAMVariant" => {
+              try {
+                val _ = new ParquetFileTraversable[ADAMVariant](sc, file)
+                say("Seems correct")
+              } catch {
+                case e: Exception =>
+                  say("Does not seems to correctly parse: " + e)
+              }
+            }
+            case "VariantCallingAnnotations" =>
+              println("NOT IMPLEMENTED: VariantCallingAnnotations")
+            case "ADAMGenotype" =>
+              say("As ADAMVariant: ")
+              try {
+                val parsedTraversable = new ParquetFileTraversable[ADAMRecord](sc, file)
+                parsedTraversable.foreach(_ => {})
+                // val _ = parsedTraversable.head
+                say("Seems correct")
+              } catch {
+                case e: Exception =>
+                  say("Does not seems to correctly parse: " + e)
+              }
+              println("NOT IMPLEMENTED: ADAMGenotype")
+            case "VariantEffect" =>
+              println("NOT IMPLEMENTED: VariantEffect")
+            case "ADAMDatabaseVariantAnnotation" =>
+              println("NOT IMPLEMENTED: ADAMDatabaseVariantAnnotation")
+            case other =>
+              println("Unknown Schema !")
+          }
+        }
+      }
+    })
+  }
   def run(sc: SparkContext, job: Job) {
     val output = Option(args.outputFile)
     args.filesToPrint.foreach(file => {
       if (args.displayRaw) {
         displayRaw(sc, file, output)
       } else {
-        //        displaySemantic(sc, file, output)
+        displaySomeInformation(sc, file, output)
       }
     })
   }
